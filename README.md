@@ -2,8 +2,8 @@
 
 這是一個 [Tampermonkey](https://www.tampermonkey.net/) 使用者腳本，專為 [Cursor](https://cursor.com) 設計。它會在您的儀表板頁面 (`/dashboard`) 新增一個功能強大的浮動統計面板，讓您能夠深入分析您的 AI 模型使用量、花費以及趨勢。
 
-![腳本介面截圖](https://i.imgur.com/your_screenshot_link.png)
-*(您可以在此處替換為您自己的截圖連結，例如您之前提供的 `image_dd39ea.png`)*
+![腳本介面截圖](https://github.com/max0821/Cursor-Usage/blob/main/cursor_usage_demo.jpg?raw=true)
+*(這是一個範例連結，您可以將專案中的截圖檔命名為 `screenshot.png` 並上傳，此圖片就會正常顯示)*
 
 ---
 
@@ -38,13 +38,15 @@
 
 ## 🔧 安裝教學
 
-1.  **安裝使用者腳本管理器**:
-    - 您需要在您的瀏覽器上先安裝一個使用者腳本管理器。最推薦的是 [Tampermonkey](https://www.tampermonkey.net/)，它支援 Chrome, Firefox, Edge, Safari 等主流瀏覽器。
+1.  **安裝使用者腳本管理器 (必要)**
+    - 您需要在您的瀏覽器上先安裝一個使用者腳本管理器。最推薦的是 [**Tampermonkey**](https://www.tampermonkey.net/)，它支援 Chrome, Firefox, Edge, Safari 等主流瀏覽器。
 
-2.  **安裝本腳本**:
-    - 點擊 Tampermonkey 的圖示，選擇「新增腳本...」(Add a new script...)。
-    - 將本腳本的完整程式碼（`// ==UserScript==` 到結尾的 `})();`）**全部複製**並**貼上**到編輯器中，取代原有的模板內容。
-    - 按下 `Ctrl + S` 或點擊「檔案」->「儲存」來保存腳本。
+2.  **點擊安裝腳本**
+    - [**➡️ 點擊此處直接安裝腳本**](https://github.com/max0821/Cursor-Usage/raw/main/Cursor-Usage.user.js)
+    - 點擊上方連結後，Tampermonkey 會自動打開一個新的分頁，顯示腳本的原始碼和資訊。
+    - 在該分頁上，點擊「安裝」(Install) 按鈕即可完成。
+
+    > **注意**：請確認您 GitHub 專案中的腳本檔案名稱確實是 `Cursor-Usage.user.js`。如果不是，請手動修改 README 中的這個連結。
 
 ---
 
@@ -63,18 +65,6 @@
     - 面板下方的圖表會顯示每日的花費趨勢。
 6.  **移動面板**:
     - 按住面板最上方的標題欄，即可將其拖動到螢幕上的任何位置。
-
----
-
-## 📜 版本歷史 (摘要)
-
-我們透過多次迭代，共同打造了這個功能完善的工具：
-- **v1-v3**: 初版，嘗試透過攔截網頁請求來獲取數據，但遇到了困難。
-- **v4**: 重大轉變，改為主動發送請求，並加入了手動查詢按鈕。
-- **v5**: 解決了 `Origin` 和 `Referer` Header 的問題，讓請求能被伺服器接受。
-- **v6**: 實現了**自動翻頁**功能，確保了數據的完整性。
-- **v7**: 新增了 **Chart.js 圖表**和多項**計算優化**，使腳本功能和精確度大幅提升。
-- **v8**: 最終版，引入了 **flatpickr 日期選擇器**和**日期記憶功能**，成為一個功能完整的分析工具。
 
 ---
 
