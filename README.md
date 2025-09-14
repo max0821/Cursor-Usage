@@ -41,7 +41,7 @@
     - 您需要在您的瀏覽器上先安裝一個使用者腳本管理器。最推薦的是 [**Tampermonkey**](https://www.tampermonkey.net/)，它支援 Chrome, Firefox, Edge, Safari 等主流瀏覽器。
 
 2.  **點擊安裝腳本**
-    - [**➡️ 點擊此處直接安裝腳本**](https://github.com/max0821/Cursor-Usage/raw/main/Cursor-Usage.user.js)
+    - [**➡️ 點擊此處直接安裝腳本**](https://github.com/max0821/Cursor-Usage/raw/main/Cursor-Usage.userscript.js)
     - 點擊上方連結後，Tampermonkey 會自動打開一個新的分頁，顯示腳本的原始碼和資訊。
     - 在該分頁上，點擊「安裝」(Install) 按鈕即可完成。
 
