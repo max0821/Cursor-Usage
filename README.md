@@ -3,7 +3,6 @@
 這是一個 [Tampermonkey](https://www.tampermonkey.net/) 使用者腳本，專為 [Cursor](https://cursor.com) 設計。它會在您的儀表板頁面 (`/dashboard`) 新增一個功能強大的浮動統計面板，讓您能夠深入分析您的 AI 模型使用量、花費以及趨勢。
 
 ![腳本介面截圖](https://github.com/max0821/Cursor-Usage/blob/main/cursor_usage_demo.jpg?raw=true)
-*(這是一個範例連結，您可以將專案中的截圖檔命名為 `screenshot.png` 並上傳，此圖片就會正常顯示)*
 
 ---
 
