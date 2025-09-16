@@ -44,9 +44,6 @@
     - [**➡️ 點擊此處直接安裝腳本**](https://raw.githubusercontent.com/max0821/Cursor-Usage/refs/heads/main/cursor_usage.userscript.js)
     - 點擊上方連結後，Tampermonkey 會自動打開一個新的分頁，顯示腳本的原始碼和資訊。
     - 在該分頁上，點擊「安裝」(Install) 按鈕即可完成。
-
-    > **注意**：請確認您 GitHub 專案中的腳本檔案名稱確實是 `Cursor-Usage.user.js`。如果不是，請手動修改 README 中的這個連結。
-
 ---
 
 ## 📖 使用指南
