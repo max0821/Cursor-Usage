@@ -1,9 +1,11 @@
 // ==UserScript==
 // @name         Cursor Usage Stats (v9.1 - 拖動功能修正)
-// @namespace    http://tampermonkey.net/
+// @namespace    https://github.com/max0821/Cursor-Usage/
+// @homepageURL  https://github.com/max0821/Cursor-Usage/
 // @version      9.1
 // @description  在 Cursor 儀表板上提供一個功能完整的浮動面板，支援中英雙語、自訂日期、自動翻頁、每日圖表與記憶功能。
-// @author       程式夥伴
+// @description  Provides a feature-complete floating panel on the Cursor dashboard, supporting bilingual (EN/ZH) switching, custom dates, auto-pagination, daily charts, and a settings memory feature.
+// @author       max0821
 // @match        https://cursor.com/cn/dashboard*
 // @grant        GM_addStyle
 // @grant        GM_xmlhttpRequest
