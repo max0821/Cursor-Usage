@@ -1,4 +1,5 @@
 # Cursor Usage Stats Panel
+**[View in Chinese (繁體中文)](./README.md)**
 
 This is a [Tampermonkey](https://www.tampermonkey.net/) userscript designed for [Cursor](https://cursor.com). It adds a powerful, floating statistics panel to your dashboard page (`/dashboard`), allowing you to deeply analyze your AI model usage, costs, and trends.
 
