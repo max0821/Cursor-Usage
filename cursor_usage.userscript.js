@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Cursor Usage Stats (v8.1 - 樣式載入修正)
+// @name         Cursor Usage Stats (v9.1 - 拖動功能修正)
 // @namespace    http://tampermonkey.net/
-// @version      8.1
-// @description  在 Cursor 儀表板上提供一個可操作的浮動面板，支援自訂日期、自動翻頁、每日圖表與記憶功能。
+// @version      9.1
+// @description  在 Cursor 儀表板上提供一個功能完整的浮動面板，支援中英雙語、自訂日期、自動翻頁、每日圖表與記憶功能。
 // @author       程式夥伴
 // @match        https://cursor.com/cn/dashboard*
 // @grant        GM_addStyle
@@ -20,23 +20,84 @@
 (function() {
     'use strict';
 
-    const PANEL_ID = 'usage-stats-panel-v8';
+    // --- 1. 國際化 (i18n) 資源 ---
+    const i18n = {
+        en: {
+            title: "Cursor Usage Stats",
+            today: "Today",
+            days7: "7 Days",
+            days30: "30 Days",
+            startDate: "Start Date",
+            endDate: "End Date",
+            query: "Query",
+            selectRange: "Please select a date range",
+            loading: "Querying",
+            page: "Page",
+            fetching: "Fetching",
+            records: "records",
+            error: "Error",
+            fetchFailed: "Request Failed",
+            noRecords: "No usage records found in this period.",
+            requests: "Requests",
+            inputTokens: "Input Tokens",
+            outputTokens: "Output Tokens",
+            cacheRead: "Cache Read",
+            cacheWrite: "Cache Write",
+            totalTokens: "Total Tokens",
+            totalCost: "Total Cost",
+            chartLabel: "Daily Cost ($)",
+            alert_select_dates: "Please select both a start and end date!",
+            langSwitch: "中"
+        },
+        zh: {
+            title: "Cursor 用量統計",
+            today: "今天",
+            days7: "7 天",
+            days30: "30 天",
+            startDate: "開始日期",
+            endDate: "結束日期",
+            query: "查詢",
+            selectRange: "請選擇查詢範圍",
+            loading: "查詢中",
+            page: "第",
+            fetching: "已獲取",
+            records: "筆",
+            error: "錯誤",
+            fetchFailed: "請求失敗",
+            noRecords: "此期間內沒有用量紀錄。",
+            requests: "請求次數",
+            inputTokens: "輸入 Tokens",
+            outputTokens: "輸出 Tokens",
+            cacheRead: "快取讀取",
+            cacheWrite: "快取寫入",
+            totalTokens: "總 Tokens",
+            totalCost: "總花費",
+            chartLabel: "每日花費 ($)",
+            alert_select_dates: "請選擇開始和結束日期！",
+            langSwitch: "EN"
+        }
+    };
+
+    const PANEL_ID = 'usage-stats-panel-v9';
     const API_URL = 'https://cursor.com/api/dashboard/get-filtered-usage-events';
     const PAGE_SIZE = 100;
     let myCursorUsageChart = null;
     let flatpickrStart, flatpickrEnd;
+    let currentLang = 'en';
+    let lastFetchedData = null;
 
-    // 建立面板 UI
-    function createPanel() {
+    // --- 2. 核心功能函式 ---
+
+    // 建立面板的基礎結構 (只執行一次)
+    function createPanelShell() {
         if (document.getElementById(PANEL_ID)) return;
-
-        // *** 關鍵修正：使用 GM_addStyle 和 GM_getResourceText 來載入 CSS ***
         const flatpickrCss = GM_getResourceText("flatpickr_css");
         GM_addStyle(flatpickrCss);
         GM_addStyle(`
             /* 主面板樣式 */
             #${PANEL_ID} { position: fixed; bottom: 20px; left: 20px; width: 380px; background-color: #282a36; border: 1px solid #44475a; border-radius: 8px; z-index: 9999; color: #f8f82f; font-family: monospace, sans-serif; box-shadow: 0 4px 12px rgba(0,0,0,0.5); font-size: 13px; }
-            #${PANEL_ID}-header { padding: 10px; cursor: move; background-color: #44475a; border-bottom: 1px solid #6272a4; border-top-left-radius: 8px; border-top-right-radius: 8px; font-weight: bold; text-align: center; color: #f8f8f2; font-size: 14px; }
+            #${PANEL_ID}-header { display: flex; justify-content: space-between; align-items: center; padding: 10px; cursor: move; background-color: #44475a; border-bottom: 1px solid #6272a4; border-top-left-radius: 8px; border-top-right-radius: 8px; font-weight: bold; color: #f8f8f2; font-size: 14px; }
+            #${PANEL_ID}-lang-switch { background: none; border: 1px solid #f8f8f2; color: #f8f8f2; border-radius: 4px; padding: 2px 6px; cursor: pointer; font-size: 12px; }
 
             /* 控制區整體 */
             #${PANEL_ID}-controls { display: flex; flex-direction: column; gap: 10px; padding: 10px; border-bottom: 1px solid #44475a; }
@@ -60,42 +121,89 @@
             #${PANEL_ID}-content td:last-child { text-align: right; color: #50fa7b; }
             #${PANEL_ID}-chart-container { padding: 10px; }
         `);
+
         const panel = document.createElement('div');
         panel.id = PANEL_ID;
+        document.body.appendChild(panel);
+
+        makeDraggable(panel);
+    }
+
+    // 更新面板內容 (切換語言、初始化時呼叫)
+    function updatePanelContent() {
+        const panel = document.getElementById(PANEL_ID);
+        if (!panel) return;
+        const T = i18n[currentLang];
+
         panel.innerHTML = `
-            <div id="${PANEL_ID}-header">📊 Cursor 用量統計 (v8.1)</div>
+            <div id="${PANEL_ID}-header">
+                <span>📊 ${T.title} (v9.1)</span>
+                <button id="${PANEL_ID}-lang-switch">${T.langSwitch}</button>
+            </div>
             <div id="${PANEL_ID}-controls">
                 <div class="control-row">
-                    <button data-days="1">今天</button>
-                    <button data-days="7">7 天</button>
-                    <button data-days="30">30 天</button>
+                    <button data-days="1">${T.today}</button>
+                    <button data-days="7">${T.days7}</button>
+                    <button data-days="30">${T.days30}</button>
                 </div>
                 <div class="control-row">
-                    <input type="text" id="start-date-picker" placeholder="開始日期">
-                    <input type="text" id="end-date-picker" placeholder="結束日期">
-                    <button class="query-btn">查詢</button>
+                    <input type="text" id="start-date-picker" placeholder="${T.startDate}">
+                    <input type="text" id="end-date-picker" placeholder="${T.endDate}">
+                    <button class="query-btn">${T.query}</button>
                 </div>
             </div>
-            <div id="${PANEL_ID}-content">請選擇查詢範圍</div>
+            <div id="${PANEL_ID}-content">${T.selectRange}</div>
             <div id="${PANEL_ID}-chart-container">
                 <canvas id="${PANEL_ID}-chart"></canvas>
             </div>
         `;
-        document.body.appendChild(panel);
-        makeDraggable(panel);
 
-        // 初始化日期選擇器
         flatpickrStart = flatpickr("#start-date-picker", { dateFormat: "Y-m-d" });
         flatpickrEnd = flatpickr("#end-date-picker", { dateFormat: "Y-m-d" });
-
-        // 載入儲存的日期
         loadSavedDates();
-
-        // 綁定事件
         panel.querySelector(`#${PANEL_ID}-controls`).addEventListener('click', handleControlClick);
+        panel.querySelector(`#${PANEL_ID}-lang-switch`).addEventListener('click', handleLangSwitch);
     }
 
-    // 處理所有控制按鈕的點擊事件
+    // 處理拖動功能
+    function makeDraggable(panel) {
+        let isDragging = false, offsetX, offsetY;
+
+        panel.addEventListener('mousedown', (e) => {
+            if (e.target.closest(`#${PANEL_ID}-header`)) {
+                isDragging = true;
+                offsetX = e.clientX - panel.getBoundingClientRect().left;
+                offsetY = e.clientY - panel.getBoundingClientRect().top;
+                document.body.style.userSelect = 'none';
+            }
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            if (isDragging) {
+                panel.style.left = `${e.clientX - offsetX}px`;
+                panel.style.top = `${e.clientY - offsetY}px`;
+            }
+        });
+
+        document.addEventListener('mouseup', () => {
+            if (isDragging) {
+                isDragging = false;
+                document.body.style.userSelect = '';
+            }
+        });
+    }
+
+    // 處理語言切換
+    async function handleLangSwitch() {
+        currentLang = (currentLang === 'en') ? 'zh' : 'en';
+        await GM_setValue('language', currentLang);
+        updatePanelContent();
+        if (lastFetchedData) {
+            processAndDisplayData(lastFetchedData);
+        }
+    }
+
+    // 處理日期選擇和查詢
     async function handleControlClick(e) {
         const target = e.target;
         if (target.tagName !== 'BUTTON') return;
@@ -103,28 +211,25 @@
         const allQuickButtons = document.querySelectorAll(`#${PANEL_ID}-controls button[data-days]`);
         allQuickButtons.forEach(btn => btn.classList.remove('active-button'));
 
-        let startDate, endDate = new Date(); // 結束日期預設為今天
+        let startDate, endDate = new Date();
 
-        if (target.dataset.days) { // 如果是快速按鈕
+        if (target.dataset.days) {
             target.classList.add('active-button');
             const days = parseInt(target.dataset.days, 10);
             startDate = new Date();
-            // 以 UTC 為基準設定開始時間
             startDate.setUTCHours(0, 0, 0, 0);
             startDate.setUTCDate(startDate.getUTCDate() - (days - 1));
 
-            // 更新 datepicker 的值
             flatpickrStart.setDate(startDate, false);
             flatpickrEnd.setDate(endDate, false);
 
-        } else if (target.classList.contains('query-btn')) { // 如果是查詢按鈕
+        } else if (target.classList.contains('query-btn')) {
              if (flatpickrStart.selectedDates[0] && flatpickrEnd.selectedDates[0]) {
                 startDate = flatpickrStart.selectedDates[0];
                 endDate = flatpickrEnd.selectedDates[0];
-                // 將結束時間設為當天的 23:59:59
                 endDate.setHours(23, 59, 59, 999);
              } else {
-                alert("請選擇開始和結束日期！");
+                alert(T.alert_select_dates);
                 return;
              }
         }
@@ -136,7 +241,7 @@
         }
     }
 
-    // 讀取並設定上次儲存的日期
+    // 讀取儲存的日期
     async function loadSavedDates() {
         const savedStart = await GM_getValue('saved_start_date', null);
         const savedEnd = await GM_getValue('saved_end_date', null);
@@ -145,7 +250,6 @@
             flatpickrStart.setDate(new Date(savedStart), false);
             flatpickrEnd.setDate(new Date(savedEnd), false);
         } else {
-            // 如果沒有儲存的日期，預設選取最近7天
             const endDate = new Date();
             const startDate = new Date();
             startDate.setDate(startDate.getDate() - 6);
@@ -154,13 +258,15 @@
         }
     }
 
-    // 負責循環獲取所有分頁的資料
+    // 抓取所有分頁數據
     async function fetchAllUsageData(startDateTimestamp, endDateTimestamp) {
         const contentDiv = document.getElementById(`${PANEL_ID}-content`);
         const buttons = document.querySelectorAll(`#${PANEL_ID}-controls button`);
         buttons.forEach(b => b.disabled = true);
-        contentDiv.innerHTML = '查詢中 (第 1 頁)...';
         if (myCursorUsageChart) { myCursorUsageChart.destroy(); }
+
+        const T = i18n[currentLang];
+        contentDiv.innerHTML = `${T.loading} (${T.page} 1)...`;
 
         let currentPage = 1, allEvents = [], totalEventsCount = 0;
         try {
@@ -173,23 +279,32 @@
                     allEvents = allEvents.concat(data.usageEventsDisplay);
                 }
                 totalEventsCount = data.totalUsageEventsCount || 0;
-                contentDiv.innerHTML = `查詢中...<br>已獲取 ${allEvents.length} / ${totalEventsCount} 筆`;
+                contentDiv.innerHTML = `${T.fetching} ${allEvents.length} / ${totalEventsCount} ${T.records}`;
                 currentPage++;
             } while (allEvents.length < totalEventsCount && totalEventsCount > 0);
+
+            lastFetchedData = allEvents;
             processAndDisplayData(allEvents);
+
         } catch (error) {
             console.error('[Cursor腳本] 獲取資料時發生錯誤:', error);
-            contentDiv.innerHTML = `錯誤: ${error.message || '請求失敗'}`;
+            contentDiv.innerHTML = `${T.error}: ${error.message || T.fetchFailed}`;
+            lastFetchedData = null;
         } finally {
             buttons.forEach(b => b.disabled = false);
         }
     }
 
-    // 處理並顯示最終資料
+    // 處理並顯示數據
     function processAndDisplayData(allEvents) {
-        // ... 此函數與 v7.4 版本完全相同 ...
         const contentDiv = document.getElementById(`${PANEL_ID}-content`);
-        if (allEvents.length === 0) { contentDiv.innerHTML = '此期間內沒有用量紀錄。'; if (myCursorUsageChart) { myCursorUsageChart.destroy(); } return; }
+        const T = i18n[currentLang];
+
+        if (allEvents.length === 0) {
+            contentDiv.innerHTML = T.noRecords;
+            if (myCursorUsageChart) { myCursorUsageChart.destroy(); }
+            return;
+        }
         let totalRequests = 0, totalInputTokens = 0, totalOutputTokens = 0, totalCostCents = 0, totalCacheReadTokens = 0, totalCacheWriteTokens = 0;
         allEvents.forEach(event => {
             if (event.kind && !event.kind.toUpperCase().includes('NOT_CHARGED') && !event.kind.toUpperCase().includes('USER_API_KEY')) {
@@ -207,22 +322,21 @@
         const totalCostDollars = totalCostCents / 100;
         contentDiv.innerHTML = `
             <table>
-                <tr><td>請求次數:</td><td>${totalRequests.toLocaleString()}</td></tr>
-                <tr><td>輸入 Tokens:</td><td>${totalInputTokens.toLocaleString()}</td></tr>
-                <tr><td>輸出 Tokens:</td><td>${totalOutputTokens.toLocaleString()}</td></tr>
-                <tr><td>快取讀取:</td><td>${totalCacheReadTokens.toLocaleString()}</td></tr>
-                <tr><td>快取寫入:</td><td>${totalCacheWriteTokens.toLocaleString()}</td></tr>
-                <tr><td>總Tokens:</td><td>${totalTokens.toLocaleString()}</td></tr>
-                <tr><td>總花費:</td><td><b>$${totalCostDollars.toFixed(4)}</b></td></tr>
+                <tr><td>${T.requests}:</td><td>${totalRequests.toLocaleString()}</td></tr>
+                <tr><td>${T.inputTokens}:</td><td>${totalInputTokens.toLocaleString()}</td></tr>
+                <tr><td>${T.outputTokens}:</td><td>${totalOutputTokens.toLocaleString()}</td></tr>
+                <tr><td>${T.cacheRead}:</td><td>${totalCacheReadTokens.toLocaleString()}</td></tr>
+                <tr><td>${T.cacheWrite}:</td><td>${totalCacheWriteTokens.toLocaleString()}</td></tr>
+                <tr><td>${T.totalTokens}:</td><td>${totalTokens.toLocaleString()}</td></tr>
+                <tr><td>${T.totalCost}:</td><td><b>$${totalCostDollars.toFixed(4)}</b></td></tr>
             </table>
         `;
         const chartData = processDataForChart(allEvents);
         renderChart(chartData);
     }
 
-    // 將事件列表處理成圖表所需的格式
+    // 處理圖表數據
     function processDataForChart(allEvents) {
-        // ... 此函數與 v7.4 版本完全相同 ...
         const dailyData = {};
         allEvents.forEach(event => {
             if (event.kind && !event.kind.toUpperCase().includes('NOT_CHARGED') && !event.kind.toUpperCase().includes('USER_API_KEY') && event.tokenUsage) {
@@ -237,17 +351,17 @@
         return { labels: sortedLabels, data: dataPoints };
     }
 
-    // 使用 Chart.js 繪製圖表
+    // 繪製圖表
     function renderChart(chartData) {
-        // ... 此函數與 v7.4 版本完全相同 ...
         if (myCursorUsageChart) { myCursorUsageChart.destroy(); }
+        const T = i18n[currentLang];
         const ctx = document.getElementById(`${PANEL_ID}-chart`).getContext('2d');
         myCursorUsageChart = new Chart(ctx, {
             type: 'line',
             data: {
                 labels: chartData.labels,
                 datasets: [{
-                    label: '每日花費 ($)',
+                    label: T.chartLabel,
                     data: chartData.data,
                     backgroundColor: 'rgba(189, 147, 249, 0.2)',
                     borderColor: 'rgba(189, 147, 249, 1)',
@@ -267,9 +381,36 @@
         });
     }
 
-    // 其他輔助函式
-    function makeRequest(payload) { return new Promise((resolve, reject) => { GM_xmlhttpRequest({ method: "POST", url: API_URL, data: JSON.stringify(payload), headers: { "Content-Type": "application/json", "Accept": "application/json", "Origin": "https://cursor.com", "Referer": window.location.href }, onload: (response) => resolve(response.responseText), onerror: (response) => reject(response) }); }); }
-    function makeDraggable(element) { let isDragging = false, offsetX, offsetY; const header = element.querySelector(`#${PANEL_ID}-header`); header.addEventListener('mousedown', (e) => { isDragging = true; offsetX = e.clientX - element.getBoundingClientRect().left; offsetY = e.clientY - element.getBoundingClientRect().top; document.body.style.userSelect = 'none'; }); document.addEventListener('mousemove', (e) => { if (isDragging) { element.style.left = `${e.clientX - offsetX}px`; element.style.top = `${e.clientY - offsetY}px`; } }); document.addEventListener('mouseup', () => { isDragging = false; document.body.style.userSelect = ''; }); }
+    // 請求輔助函式
+    function makeRequest(payload) {
+        return new Promise((resolve, reject) => {
+            GM_xmlhttpRequest({
+                method: "POST",
+                url: API_URL,
+                data: JSON.stringify(payload),
+                headers: {
+                    "Content-Type": "application/json",
+                    "Accept": "application/json",
+                    "Origin": "https://cursor.com",
+                    "Referer": window.location.href
+                },
+                onload: (response) => resolve(response.responseText),
+                onerror: (response) => reject(response)
+            });
+        });
+    }
 
-    window.addEventListener('load', createPanel);
+    // --- 3. 腳本初始化 ---
+    async function init() {
+        const savedLang = await GM_getValue('language', null);
+        if (savedLang) {
+            currentLang = savedLang;
+        } else if (navigator.language.startsWith('zh')) {
+            currentLang = 'zh';
+        }
+        createPanelShell();
+        updatePanelContent();
+    }
+
+    window.addEventListener('load', init);
 })();
